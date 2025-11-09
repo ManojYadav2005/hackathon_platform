@@ -1,3 +1,4 @@
+"use client";
 import React, { useState } from 'react';
 import {
   auth,
@@ -5,13 +6,16 @@ import {
   HACKATHON_NAME,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signOut,
   setDoc,
   doc,
-  getUserDocPath
-} from '@/app/firebase/config';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import Card from '@/components/ui/Card';
+  getDoc,
+  getUserDocPath,
+  getConfigDocPath
+} from '../../app/firebase/config';
+import Button from '../ui/Button.jsx';
+import Input from '../ui/Input.jsx';
+import Card from '../ui/Card.jsx';
 
 export const HomePage = ({ setCurrentPage }) => (
   <div className="text-center py-16">
@@ -27,10 +31,20 @@ export const HomePage = ({ setCurrentPage }) => (
         Participant Login
       </Button>
     </div>
+
+    <div className="mt-12">
+      <span
+        onClick={() => setCurrentPage('ADMIN_LOGIN')}
+        className="text-gray-400 hover:text-white hover:underline cursor-pointer"
+      >
+        Admin Portal Login
+      </span>
+    </div>
+    
     <Card className="mt-16 text-left max-w-4xl mx-auto">
-      <h2 className="text-3xl font-bold mb-4 text-blue-400">About the Hackathon</h2>
-      <p className="mb-4">Tackle real-world problems using Artificial Intelligence, Machine Learning, and other emerging technologies. Showcase your skills, collaborate with peers, and win exciting prizes!</p>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+       <h2 className="text-3xl font-bold mb-4 text-blue-400">About the Hackathon</h2>
+       <p className="mb-4">Tackle real-world problems using Artificial Intelligence, Machine Learning, and other emerging technologies. Showcase your skills, collaborate with peers, and win exciting prizes!</p>
+       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div>
           <h3 className="text-xl font-semibold">Round 1 (Online)</h3>
           <p className="text-gray-400">MCQs, Aptitude, & Basic Coding</p>
@@ -43,14 +57,6 @@ export const HomePage = ({ setCurrentPage }) => (
           <h3 className="text-xl font-semibold">Round 3 (Offline)</h3>
           <p className="text-gray-400">Final Hackathon at NIT Silchar</p>
         </div>
-      </div>
-      <div className="mt-8 border-t border-gray-700 pt-6">
-        <h3 className="text-2xl font-bold mb-3">Prizes</h3>
-        <ul className="list-disc list-inside space-y-2">
-          <li><span className="font-semibold text-yellow-400">1st Prize:</span> ₹50,000 + Certificate</li>
-          <li><span className="font-semibold text-gray-300">2nd Prize:</span> ₹40,000 + Certificate</li>
-          <li><span className="font-semibold text-orange-400">3rd Prize:</span> ₹30,000 + Certificate</li>
-        </ul>
       </div>
     </Card>
   </div>
@@ -114,6 +120,7 @@ export const LoginPage = ({ setCurrentPage, setError }) => {
 };
 
 export const RegisterPage = ({ setCurrentPage, setError }) => {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -122,6 +129,10 @@ export const RegisterPage = ({ setCurrentPage, setError }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    if (!name || !email || !password || !confirmPassword) {
+      setError("Please fill in all fields.");
+      return;
+    }
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
       return;
@@ -133,9 +144,11 @@ export const RegisterPage = ({ setCurrentPage, setError }) => {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
       await setDoc(doc(db, getUserDocPath(userCredential.user.uid)), {
         uid: userCredential.user.uid,
         email: userCredential.user.email,
+        name: name,
         teamId: null,
       });
     } catch (e) {
@@ -150,6 +163,12 @@ export const RegisterPage = ({ setCurrentPage, setError }) => {
       <Card>
         <h2 className="text-3xl font-bold text-center mb-6">Create Account</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
+           <Input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Full Name"
+          />
           <Input
             type="email"
             value={email}
@@ -179,6 +198,75 @@ export const RegisterPage = ({ setCurrentPage, setError }) => {
             className="text-blue-400 hover:underline cursor-pointer"
           >
             Login here
+          </span>
+        </p>
+      </Card>
+    </div>
+  );
+};
+
+// --- YEH COMPONENT UPDATE KIYA GAYA HAI (THIS COMPONENT IS UPDATED) ---
+export const AdminLoginPage = ({ setCurrentPage, setError, setIsAdmin }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Hardcoded admin email
+  const PREDEFINED_ADMIN_EMAIL = "admin@hackathon.com";
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      // Step 1: Login to Firebase to check password
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      
+      // Step 2: Check if the logged-in email is the predefined admin email
+      if (userCredential.user.email === PREDEFINED_ADMIN_EMAIL) {
+        // SUCCESS: This is the admin
+        setIsAdmin(true);
+        setCurrentPage('ADMIN');
+      } else {
+        // FAILED: Login was correct, but email is not the admin one
+        setError("Login successful, but this is not the admin email account.");
+        await signOut(auth); // Log them out
+      }
+    } catch (e) {
+      console.error("Admin Login error:", e);
+      setError("Admin login failed. Email or password is wrong.");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="max-w-md mx-auto">
+      <Card>
+        <h2 className="text-3xl font-bold text-center mb-6">Admin Portal Login</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Admin Email"
+          />
+          <Input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Admin Password"
+          />
+          <Button type="submit" variant="primary" className="w-full" disabled={loading}>
+            {loading ? 'Logging in...' : 'Log In as Admin'}
+          </Button>
+        </form>
+        <p className="text-center mt-4">
+          Not an admin?{' '}
+          <span
+            onClick={() => setCurrentPage('HOME')}
+            className="text-blue-400 hover:underline cursor-pointer"
+          >
+            Go to Participant Site
           </span>
         </p>
       </Card>

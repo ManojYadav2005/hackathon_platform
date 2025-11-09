@@ -63,6 +63,7 @@ const getR1MCQSubmissionsPath = (teamId) => `/artifacts/${appId}/public/data/r1_
 const getR1CodeSubmissionsPath = (teamId) => `/artifacts/${appId}/public/data/r1_code_submissions/${teamId}`;
 const getR2SubmissionsPath = (teamId) => `/artifacts/${appId}/public/data/r2_submissions/${teamId}`;
 const getConfigDocPath = () => `/artifacts/${appId}/public/data/config/hackathon`;
+const getRoundConfigDocPath = () => `/artifacts/${appId}/public/data/config/rounds`;
 
 export {
   auth,
@@ -97,5 +98,6 @@ export {
   getR1MCQSubmissionsPath,
   getR1CodeSubmissionsPath,
   getR2SubmissionsPath,
-  getConfigDocPath
+  getConfigDocPath,
+  getRoundConfigDocPath
 };

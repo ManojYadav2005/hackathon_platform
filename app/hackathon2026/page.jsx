@@ -1,3 +1,4 @@
+
 "use client";
 import React, { useState, useEffect } from 'react';
 import {
@@ -16,15 +17,17 @@ import {
   getConfigDocPath,
   getUserDocPath,
   getTeamDocPath
-} from '@/app/firebase/config';
+} from '../firebase/config';
 import {
   LoadingPage,
   ErrorPage,
   ErrorDisplay,
   Header
-} from '@/components/common/Loader';
-import { HomePage, LoginPage, RegisterPage } from '@/components/auth/LoginPage';
-import { ParticipantDashboard, AdminDashboard } from '@/components/dashboard/Dashboard';
+} from '../../components/common/Loader.jsx';
+import { HomePage, LoginPage, RegisterPage, AdminLoginPage } from '../../components/auth/AuthPages.jsx';
+import { ParticipantDashboard } from '../../components/participant/ParticipantDashboard.jsx';
+import { AdminDashboard } from '../../components/admin/AdminDashboard.jsx';
+import { RoundConfigProvider } from '../../context/RoundConfigContext.jsx';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('LOADING');
@@ -37,49 +40,45 @@ export default function App() {
 
   useEffect(() => {
     if (!auth) {
-      setError("Firebase not initialized.");
       setLoading(false);
-      setCurrentPage('ERROR');
+      setCurrentPage('HOME');
       return;
     }
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setLoading(true);
-      if (user) {
+      if (user && !user.isAnonymous && !isAdmin) {
         setCurrentUser(user);
-        try {
-          const configDoc = await getDoc(doc(db, getConfigDocPath()));
-          if (configDoc.exists() && configDoc.data().adminUids?.includes(user.uid)) {
-            setIsAdmin(true);
-            setCurrentPage('ADMIN');
-          } else {
-            setIsAdmin(false);
-            setCurrentPage('DASHBOARD');
-          }
-        } catch (e) {
-          console.error("Error checking admin status:", e);
-          setIsAdmin(false);
-          setCurrentPage('DASHBOARD');
-        }
-      } else {
+        setIsAdmin(false);
+        setCurrentPage('DASHBOARD');
+      } else if (user && user.isAnonymous) {
+        setCurrentUser(user);
+        setIsAdmin(false);
+        setCurrentPage('HOME');
+      } else if (!user) {
         setCurrentUser(null);
         setUserData(null);
         setTeamData(null);
         setIsAdmin(false);
         setCurrentPage('HOME');
+        try {
+          await signInAnonymously(auth);
+        } catch (e) {
+          console.error("Anonymous sign-in error:", e);
+          setError("Failed to get anonymous access.");
+        }
       }
       setLoading(false);
     });
-
     
     
     const authInit = async () => {
+      if (!auth) return;
       try {
         if (initialAuthToken) {
           await signInWithCustomToken(auth, initialAuthToken);
-        } else {
-          // 🚀 CLEANED: Standard signInAnonymously call, relying on real error handling
-          await signInAnonymously(auth); 
+        } else if (!auth.currentUser) {
+           await signInAnonymously(auth); 
         }
       } catch (e) {
         console.error("Auth init error:", e);
@@ -90,12 +89,11 @@ export default function App() {
 
     authInit();
     
-
     return () => unsubscribe();
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
-    if (currentUser && !isAdmin) {
+    if (currentUser && !isAdmin && !currentUser.isAnonymous) {
       const userDocRef = doc(db, getUserDocPath(currentUser.uid));
       const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
         if (docSnap.exists()) {
@@ -104,12 +102,15 @@ export default function App() {
           setDoc(userDocRef, {
             email: currentUser.email,
             uid: currentUser.uid,
+            name: currentUser.displayName || currentUser.email,
             teamId: null,
           }).catch(e => console.error("Error creating user doc:", e));
         }
       }, (e) => console.error("Error listening to user data:", e));
 
       return () => unsubscribe();
+    } else {
+      setUserData(null);
     }
   }, [currentUser, isAdmin]);
 
@@ -121,7 +122,9 @@ export default function App() {
           setTeamData({ id: docSnap.id, ...docSnap.data() });
         } else {
           setTeamData(null);
-          updateDoc(doc(db, getUserDocPath(currentUser.uid)), { teamId: null });
+          if (currentUser) {
+            updateDoc(doc(db, getUserDocPath(currentUser.uid)), { teamId: null });
+          }
         }
       }, (e) => console.error("Error listening to team data:", e));
 
@@ -135,6 +138,8 @@ export default function App() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
+      setIsAdmin(false);
+      setCurrentPage('HOME');
     } catch (e) {
       console.error("Logout error:", e);
       setError("Failed to log out.");
@@ -157,14 +162,24 @@ export default function App() {
         return <LoginPage setCurrentPage={setCurrentPage} setError={setError} />;
       case 'REGISTER':
         return <RegisterPage setCurrentPage={setCurrentPage} setError={setError} />;
-      case 'DASHBOARD':
-        return <ParticipantDashboard
-                  currentUser={currentUser}
-                  userData={userData}
-                  teamData={teamData}
-                  setCurrentPage={setCurrentPage}
-                  setError={setError}
+      case 'ADMIN_LOGIN':
+        return <AdminLoginPage 
+                  setCurrentPage={setCurrentPage} 
+                  setError={setError} 
+                  setIsAdmin={setIsAdmin} 
                 />;
+      case 'DASHBOARD':
+        return (
+          <RoundConfigProvider>
+            <ParticipantDashboard
+              currentUser={currentUser}
+              userData={userData}
+              teamData={teamData}
+              setCurrentPage={setCurrentPage}
+              setError={setError}
+            />
+          </RoundConfigProvider>
+        );
       case 'ADMIN':
         return <AdminDashboard currentUser={currentUser} setError={setError} />;
       default:
