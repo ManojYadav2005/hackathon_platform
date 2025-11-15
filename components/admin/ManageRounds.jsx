@@ -37,12 +37,14 @@ export const ManageRounds = ({ setError }) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         setConfig(data);
+        
         setR1Questions(data.round1?.questions || '');
         setR1Coding(data.round1?.codingQuestion || '');
         setR1Timer(data.round1?.timerMinutes || 30);
         setR1Ans1(data.round1?.answers?.q1 || '');
         setR1Ans2(data.round1?.answers?.q2 || '');
         setR1Ans3(data.round1?.answers?.q3 || '');
+        
         setR2Problem(data.round2?.problemStatement || '');
         setR2Dataset(data.round2?.datasetLink || '');
         setR2Timer(data.round2?.timerHours || 48);
@@ -138,6 +140,7 @@ export const ManageRounds = ({ setError }) => {
                 placeholder="Enter the coding question here..."
               />
             </div>
+            
             <div>
               <label className="block mb-1 font-medium">Timer (minutes)</label>
               <Input
@@ -185,14 +188,16 @@ export const ManageRounds = ({ setError }) => {
                 placeholder="https://link.to/dataset.csv"
               />
             </div>
+            
             <div>
               <label className="block mb-1 font-medium">Timer (hours)</label>
               <Input
                 type="number"
                 value={r2Timer}
-                onChange={(e) => setR2Timer(e.g.value)}
+                onChange={(e) => setR2Timer(e.target.value)}
               />
             </div>
+
             <Button onClick={() => startRound('round2')} disabled={saving} variant="secondary">
               Start Round 2
             </Button>

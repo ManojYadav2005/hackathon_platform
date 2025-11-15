@@ -1,3 +1,4 @@
+
 "use client";
 import React, { useState } from 'react';
 import {
@@ -10,16 +11,17 @@ import {
   getTeamDocPath,
   getR1MCQSubmissionsPath,
   getR1CodeSubmissionsPath
-} from '@/app/firebase/config';
+} from '../../app/firebase/config';
 import Button from '../ui/Button.jsx';
 import Card from '../ui/Card.jsx';
 import { LoadingPage } from '../common/Loader.jsx';
 import { Timer } from '../common/Timer.jsx';
-import { useRoundConfig } from '@/context/RoundConfigContext.jsx';
+import { useRoundConfig } from '../../context/RoundConfigContext.jsx';
 
 export const Round1Page = ({ teamData, setError, setCurrentView }) => {
   const [mcqAnswers, setMcqAnswers] = useState({});
   const [codingSubmission, setCodingSubmission] = useState('');
+  const [codingLanguage, setCodingLanguage] = useState('PYTHON');
   const [loading, setLoading] = useState(false);
   const [isTimeUp, setIsTimeUp] = useState(false);
   const roundConfig = useRoundConfig();
@@ -28,14 +30,26 @@ export const Round1Page = ({ teamData, setError, setCurrentView }) => {
     setLoading(true);
     setError('');
 
-    let score = 0;
     const answerKey = roundConfig?.round1?.answers;
-    if (answerKey) {
+    const numMcqs = answerKey ? Object.keys(answerKey).length : 0;
+    
+    let score = 0;
+    if (answerKey && numMcqs > 0) {
       for (const qKey in mcqAnswers) {
         if (mcqAnswers[qKey] === answerKey[qKey]) {
           score += 1;
         }
       }
+    }
+
+    const percentage = numMcqs > 0 ? (score / numMcqs) * 100 : 0;
+    
+    let newStatus = 'pending_verification';
+    let alertMessage = `Round 1 submitted. Your score is ${score}/${numMcqs} (${percentage.toFixed(0)}%). Your submission is now pending admin review for Top 75% qualification.`;
+
+    if (percentage >= 50) {
+      newStatus = 'round_2';
+      alertMessage = `Congratulations! Your score is ${score}/${numMcqs} (${percentage.toFixed(0)}%). You have automatically qualified for Round 2!`;
     }
 
     try {
@@ -51,18 +65,21 @@ export const Round1Page = ({ teamData, setError, setCurrentView }) => {
       const codeDocRef = doc(db, getR1CodeSubmissionsPath(teamData.id));
       batch.set(codeDocRef, {
         code: codingSubmission,
+        language: codingLanguage,
         submittedAt: serverTimestamp(),
       });
 
       const teamDocRef = doc(db, getTeamDocPath(teamData.id));
       batch.update(teamDocRef, {
-        status: 'pending_verification',
+        status: newStatus,
         round1Score: score,
       });
       
       await batch.commit();
-      alert("Round 1 submission received! Your score will be verified by the admin.");
+      alert(alertMessage);
+      
       setCurrentView('ROUND2');
+
     } catch (e) {
       console.error(e);
       setError("Failed to submit answers.");
@@ -78,7 +95,7 @@ export const Round1Page = ({ teamData, setError, setCurrentView }) => {
     return <Card><h2 className="text-3xl font-bold mb-4">Round 1 not yet configured by admin.</h2></Card>;
   }
   
-  const numMcqs = round1.answers ? Object.keys(round1.answers).length : 3;
+  const numMcqs = round1.answers ? Object.keys(round1.answers).length : 0;
 
   return (
     <Card>
@@ -96,7 +113,7 @@ export const Round1Page = ({ teamData, setError, setCurrentView }) => {
           <h3 className="text-2xl font-semibold mb-4">Part 1: MCQs</h3>
           <pre className="whitespace-pre-wrap font-sans bg-gray-800 p-4 rounded-lg mb-4">{round1.questions}</pre>
           <div className="space-y-4">
-            {[...Array(numMcqs).keys()].map(n => {
+            {numMcqs > 0 ? [...Array(numMcqs).keys()].map(n => {
               const qKey = `q${n + 1}`;
               return (
                 <div key={qKey}>
@@ -114,13 +131,30 @@ export const Round1Page = ({ teamData, setError, setCurrentView }) => {
                   </select>
                 </div>
               );
-            })}
+            }) : <p className="text-gray-400">MCQs have not been set by the admin.</p>}
           </div>
         </Card>
         
         <Card className="bg-gray-900">
           <h3 className="text-2xl font-semibold mb-4">Part 2: Basic Coding</h3>
           <pre className="whitespace-pre-wrap font-sans bg-gray-800 p-4 rounded-lg mb-4">{round1.codingQuestion}</pre>
+          
+          <div className="mb-4">
+            <label htmlFor="language" className="block mb-2 font-medium">Select Language:</label>
+            <select
+              id="language"
+              value={codingLanguage}
+              onChange={(e) => setCodingLanguage(e.target.value)}
+              className="w-full p-2 bg-gray-700 rounded-lg"
+              disabled={isTimeUp}
+            >
+              <option value="PYTHON">Python</option>
+              <option value="CPP">C++</option>
+              <option value="JAVA">Java</option>
+              <option value="JAVASCRIPT">JavaScript</option>
+            </select>
+          </div>
+          
           <textarea
             value={codingSubmission}
             onChange={(e) => setCodingSubmission(e.target.value)}
@@ -138,5 +172,3 @@ export const Round1Page = ({ teamData, setError, setCurrentView }) => {
     </Card>
   );
 };
-
-

@@ -1,3 +1,4 @@
+
 "use client";
 import React, { useState } from 'react';
 import {
@@ -125,10 +126,19 @@ export const RegisterPage = ({ setCurrentPage, setError }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  const REGISTRATION_DEADLINE = new Date('2025-12-31T00:00:00');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    const now = new Date();
+    if (now > REGISTRATION_DEADLINE) {
+      setError("Registration for Hackathon 2026 has closed. (Deadline: 30th Dec 2025)");
+      return;
+    }
+
     if (!name || !email || !password || !confirmPassword) {
       setError("Please fill in all fields.");
       return;
@@ -205,13 +215,11 @@ export const RegisterPage = ({ setCurrentPage, setError }) => {
   );
 };
 
-// --- YEH COMPONENT UPDATE KIYA GAYA HAI (THIS COMPONENT IS UPDATED) ---
 export const AdminLoginPage = ({ setCurrentPage, setError, setIsAdmin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Hardcoded admin email
   const PREDEFINED_ADMIN_EMAIL = "admin@hackathon.com";
 
   const handleSubmit = async (e) => {
@@ -219,18 +227,14 @@ export const AdminLoginPage = ({ setCurrentPage, setError, setIsAdmin }) => {
     setError('');
     setLoading(true);
     try {
-      // Step 1: Login to Firebase to check password
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
-      // Step 2: Check if the logged-in email is the predefined admin email
       if (userCredential.user.email === PREDEFINED_ADMIN_EMAIL) {
-        // SUCCESS: This is the admin
         setIsAdmin(true);
         setCurrentPage('ADMIN');
       } else {
-        // FAILED: Login was correct, but email is not the admin one
         setError("Login successful, but this is not the admin email account.");
-        await signOut(auth); // Log them out
+        await signOut(auth);
       }
     } catch (e) {
       console.error("Admin Login error:", e);

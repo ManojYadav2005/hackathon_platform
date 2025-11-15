@@ -1,7 +1,8 @@
+
+"use client";
 import React from 'react';
-import { HACKATHON_NAME } from '@/app/firebase/config';
-import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
+import { HACKATHON_NAME } from '../../app/firebase/config';
+import Button from '../ui/Button.jsx';
 
 export const LoadingPage = () => (
   <div className="flex justify-center items-center h-64">
@@ -28,12 +29,17 @@ export const Header = ({ currentUser, isAdmin, handleLogout, setCurrentPage }) =
     <nav className="container mx-auto px-4 py-4 flex justify-between items-center">
       <div
         className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500 cursor-pointer"
-        onClick={() => setCurrentPage(isAdmin ? 'ADMIN' : (currentUser ? 'DASHBOARD' : 'HOME'))}
+        
+        // --- THIS IS THE FIX ---
+        // It now always goes to 'HOME' instead of the dashboard
+        onClick={() => setCurrentPage('HOME')}
+        // --- END OF FIX ---
+
       >
         {HACKATHON_NAME}
       </div>
       <div>
-        {currentUser ? (
+        {currentUser && !currentUser.isAnonymous ? (
           <>
             <span className="mr-4 text-gray-300">
               {isAdmin ? 'Admin' : currentUser.email}
@@ -43,14 +49,16 @@ export const Header = ({ currentUser, isAdmin, handleLogout, setCurrentPage }) =
             </Button>
           </>
         ) : (
-          <>
-            <Button onClick={() => setCurrentPage('LOGIN')} variant="secondary" className="mr-2">
-              Login
-            </Button>
-            <Button onClick={() => setCurrentPage('REGISTER')} variant="primary">
-              Register
-            </Button>
-          </>
+          !isAdmin && (
+            <>
+              <Button onClick={() => setCurrentPage('LOGIN')} variant="secondary" className="mr-2">
+                Login
+              </Button>
+              <Button onClick={() => setCurrentPage('REGISTER')} variant="primary">
+                Register
+              </Button>
+            </>
+          )
         )}
       </div>
     </nav>
@@ -61,7 +69,7 @@ export const Modal = ({ show, onClose, title, children }) => {
   if (!show) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
-      <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4">
+      <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl mx-4">
         <div className="flex justify-between items-center p-4 border-b border-gray-700">
           <h3 className="text-xl font-semibold">{title}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">&times;</button>

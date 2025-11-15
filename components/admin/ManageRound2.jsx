@@ -1,16 +1,21 @@
+
 "use client";
-import React from 'react';
+import React, { useState } from 'react';
 import {
   db,
   doc,
   updateDoc,
-  getTeamDocPath
-} from '@/app/firebase/config';
+  getDoc,
+  getTeamDocPath,
+  getR2SubmissionsPath
+} from '../../app/firebase/config';
 import Card from '../ui/Card.jsx';
 import Button from '../ui/Button.jsx';
 
 export const ManageRound2 = ({ teams, setError }) => {
-  const round2Teams = teams.filter(t => t.status === 'round_2');
+  const [loadingLink, setLoadingLink] = useState(null);
+
+  const round2Teams = teams.filter(t => t.status === 'round_2' || t.status === 'round_3');
   
   const handleAdvanceTeam = async (teamId) => {
     try {
@@ -32,6 +37,40 @@ export const ManageRound2 = ({ teams, setError }) => {
       console.error(e);
       setError("Failed to eliminate team.");
     }
+  };
+
+  const handleViewLink = async (teamId) => {
+    setLoadingLink(teamId);
+    setError('');
+    try {
+      const submissionDocRef = doc(db, getR2SubmissionsPath(teamId));
+      const submissionDoc = await getDoc(submissionDocRef);
+
+      if (submissionDoc.exists()) {
+        const link = submissionDoc.data().submissionLink;
+        
+        if (link) {
+          // --- THIS IS THE FIX ---
+          // Check if the link already has http:// or https://
+          let correctedLink = link;
+          if (!link.startsWith('http://') && !link.startsWith('https://')) {
+            // If not, add https:// to the beginning
+            correctedLink = 'https://' + link;
+          }
+          // --- END OF FIX ---
+
+          window.open(correctedLink, '_blank', 'noopener,noreferrer');
+        } else {
+          setError("No submission link found for this team.");
+        }
+      } else {
+        setError("No submission document found for this team.");
+      }
+    } catch (e) {
+      console.error("Error fetching link:", e);
+      setError("Failed to fetch submission link.");
+    }
+    setLoadingLink(null);
   };
 
   return (
@@ -60,10 +99,17 @@ export const ManageRound2 = ({ teams, setError }) => {
                 <td className="p-2">{team.teamName}</td>
                 <td className="p-2 capitalize">{team.status}</td>
                 <td className="p-2">
-                  <span className="text-blue-400 cursor-pointer">View Link</span>
+                  <Button 
+                    onClick={() => handleViewLink(team.id)} 
+                    variant="secondary" 
+                    className="text-sm px-2 py-1"
+                    disabled={loadingLink === team.id}
+                  >
+                    {loadingLink === team.id ? 'Loading...' : 'View Link'}
+                  </Button>
                 </td>
                 <td className="p-2 space-x-2">
-                  <Button onClick={() => handleAdvanceTeam(team.id)} variant="success" className="text-sm px-2 py-1">
+                  <Button onClick={() => handleAdvanceTeam(team.id)} variant="success" className="text-sm px-2 py-1" disabled={team.status === 'round_3'}>
                     Advance
                   </Button>
                   <Button onClick={() => handleEliminateTeam(team.id)} variant="danger" className="text-sm px-2 py-1">
