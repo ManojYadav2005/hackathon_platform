@@ -1,13 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  webpack: (config, { isServer, webpack }) => {
-    // This is the fix for the 'undici' module parse error during 'next build'
-    // It tells Webpack to treat 'undici' as an external module
-    // that shouldn't be bundled.
+  webpack: (config, { isServer }) => {
+    // This is the fix for the 'undici' module parse error.
+    // It tells Webpack that for the client-side build (!isServer),
+    // the 'undici' module should be treated as an empty file (false).
     if (!isServer) {
-      config.externals = [...config.externals, 'undici'];
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        undici: false,
+      };
     }
-
     return config;
   },
 };
