@@ -7,9 +7,10 @@ const nextConfig = {
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
-        undici: false,
+        "undici": false,
       };
     }
+
     return config;
   },
 };
