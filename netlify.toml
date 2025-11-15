@@ -1,0 +1,27 @@
+# This file tells Netlify how to build your project
+# It overrides all the UI settings
+
+[build]
+  # This is your build command
+  command = "npm run build"
+  
+  # This is the folder Next.js builds to
+  publish = ".next"
+
+[build.environment]
+  # This forces Netlify to use Node.js 18, which fixes the 'undici' error
+  NODE_VERSION = "18"
+
+[build.processing]
+  skip_processing = false
+
+[build.processing.css]
+  bundle = true
+  minify = true
+
+[build.processing.js]
+  bundle = true
+  minify = true
+
+[build.processing.html]
+  pretty_urls = true
